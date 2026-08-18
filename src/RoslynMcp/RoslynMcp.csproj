@@ -3,23 +3,22 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
-    <PackAsTool>true</PackAsTool>
-    <ToolCommandName>roslyn</ToolCommandName>
-    <PackageId>RoslynCli.Tool</PackageId>
-    <Version>0.2.0</Version>
-    <Description>Semantic command-line tools for C# and Roslyn.</Description>
+    <AssemblyName>RoslynMcp</AssemblyName>
+    <RootNamespace>RoslynMcp</RootNamespace>
+    <PackageId>RoslynMcp</PackageId>
+    <Version>1.0.0</Version>
+    <Description>An MCP 2.0 server providing semantic C# and Roslyn tools.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Build.Framework" Version="17.11.48" ExcludeAssets="runtime" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.Build.Locator" Version="1.11.2" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.6.0" />
     <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="5.6.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
+    <PackageReference Include="ModelContextProtocol" Version="2.0.0" />
     <PackageReference Include="RoslynMcp.Core" Version="0.4.0" />
-    <PackageReference Include="System.CommandLine" Version="2.0.10" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,14 +1,14 @@
 {
-  "name": "roslyn-cli",
+  "name": "roslyn-mcp",
   "interface": {
-    "displayName": "Roslyn CLI"
+    "displayName": "Roslyn MCP"
   },
   "plugins": [
     {
-      "name": "roslyn-cli",
+      "name": "roslyn-mcp",
       "source": {
         "source": "local",
-        "path": "./plugins/roslyn-cli"
+        "path": "./plugins/roslyn-mcp"
       },
       "policy": {
         "installation": "AVAILABLE",

@@ -1,21 +1,12 @@
 using System.Reflection;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using RoslynMcp.Core.Workspace;
 using RoslynMcp.Contracts.Models;
 
-namespace RoslynCli;
+namespace RoslynMcp;
 
 // Adapter for the MIT-licensed RoslynMcp.Core operation library.
 public static class ExtendedToolService
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true,
-        Converters = { new JsonStringEnumConverter() }
-    };
-
     private static readonly IReadOnlyDictionary<string, (string Operation, string Parameters)> Operations =
         new Dictionary<string, (string, string)>(StringComparer.OrdinalIgnoreCase)
         {
@@ -63,7 +54,7 @@ public static class ExtendedToolService
 
     public static IReadOnlyList<string> GetOperationNames() => ["diagnose", .. Operations.Keys.OrderBy(name => name)];
 
-    public static async Task<string> ExecuteAsync(string path, string operation, string parametersJson, CancellationToken cancellationToken = default)
+    public static async Task<object> ExecuteAsync(string path, string operation, object? parameters, CancellationToken cancellationToken = default)
     {
         if (operation.Equals("diagnose", StringComparison.OrdinalIgnoreCase))
             return await DiagnoseAsync(path, cancellationToken);
@@ -76,16 +67,17 @@ public static class ExtendedToolService
         var contractsAssembly = typeof(SearchSymbolsParams).Assembly;
         var operationType = coreAssembly.GetTypes().Single(type => type.Name == registration.Operation);
         var parameterType = contractsAssembly.GetTypes().Single(type => type.Name == registration.Parameters);
-        var parameters = JsonSerializer.Deserialize(parametersJson, parameterType, JsonOptions)!;
+        if (parameters is null || !parameterType.IsInstanceOfType(parameters))
+            throw new ArgumentException($"Operation '{operation}' requires parameters of type {parameterType.Name}.", nameof(parameters));
         var instance = Activator.CreateInstance(operationType, context)!;
         var method = operationType.GetMethod("ExecuteAsync", BindingFlags.Instance | BindingFlags.Public)!;
         var task = (Task)method.Invoke(instance, [parameters, cancellationToken])!;
         await task;
         var result = task.GetType().GetProperty("Result")!.GetValue(task)!;
-        return JsonSerializer.Serialize(result, result.GetType(), JsonOptions);
+        return result;
     }
 
-    private static async Task<string> DiagnoseAsync(string path, CancellationToken cancellationToken)
+    private static async Task<object> DiagnoseAsync(string path, CancellationToken cancellationToken)
     {
         var provider = new MSBuildWorkspaceProvider();
         var environment = provider.CheckEnvironment();
@@ -95,6 +87,6 @@ public static class ExtendedToolService
             using var context = await provider.CreateContextAsync(path, cancellationToken);
             workspace = new { loaded = true, path = context.LoadedPath, projects = context.Solution.ProjectIds.Count };
         }
-        return JsonSerializer.Serialize(new { healthy = environment.MsBuildFound, environment, workspace }, JsonOptions);
+        return new { healthy = environment.MsBuildFound, environment, workspace };
     }
 }

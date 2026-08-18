@@ -27,8 +27,3 @@ jobs:
       - name: Test with 100% coverage gates
         run: python scripts/test-all.py
 
-      - name: Test one-shot DNX execution
-        run: >-
-          dnx RoslynCli.Tool --source artifacts/package --
-          symbol search samples/SkillFixture/SkillFixture.slnx
-          ProcessPaymentAsync --kind method --format json

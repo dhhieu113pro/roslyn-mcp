@@ -40,7 +40,7 @@ def validate(skill_dir: Path) -> list[str]:
 def main() -> int:
     repository = Path(__file__).resolve().parent.parent
     repository_skills = repository / ".agents" / "skills"
-    plugin_skills = repository / "plugins" / "roslyn-cli" / "skills"
+    plugin_skills = repository / "plugins" / "roslyn-mcp" / "skills"
     skill_dirs = sorted(
         path
         for skills_dir in (repository_skills, plugin_skills)

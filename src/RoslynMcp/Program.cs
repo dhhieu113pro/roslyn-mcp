@@ -1,9 +1,9 @@
 using System.Diagnostics.CodeAnalysis;
 
-namespace RoslynCli;
+namespace RoslynMcp;
 
 [ExcludeFromCodeCoverage(Justification = "Process entry point delegates directly to the tested application boundary.")]
-internal static class Program
+public static class Program
 {
-    public static Task<int> Main(string[] args) => RoslynCliApp.InvokeAsync(args);
+    public static Task Main(string[] args) => McpServerHost.RunAsync(args);
 }

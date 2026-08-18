@@ -1,11 +1,11 @@
 <Solution>
   <Folder Name="/src/">
-    <Project Path="src/RoslynCli/RoslynCli.csproj" />
+    <Project Path="src/RoslynMcp/RoslynMcp.csproj" />
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/SkillFixture/src/SkillFixture/SkillFixture.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/RoslynCli.Tests/RoslynCli.Tests.csproj" />
+    <Project Path="tests/RoslynMcp.Tests/RoslynMcp.Tests.csproj" />
   </Folder>
 </Solution>

@@ -30,7 +30,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\RoslynCli\RoslynCli.csproj" />
+    <ProjectReference Include="..\..\src\RoslynMcp\RoslynMcp.csproj" />
   </ItemGroup>
 
 </Project>
