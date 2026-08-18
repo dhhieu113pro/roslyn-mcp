@@ -54,7 +54,7 @@ public sealed class McpToolSurfaceTests
 
         var search = await client.CallToolAsync("search-symbols", new Dictionary<string, object?>
         {
-            ["path"] = Path.Combine(GetRepositoryRoot(), "samples", "SkillFixture", "SkillFixture.slnx"),
+            ["path"] = GetSkillFixtureSolution(),
             ["parameters"] = new Dictionary<string, object?>
             {
                 ["query"] = "PaymentService",
@@ -79,7 +79,7 @@ public sealed class McpToolSurfaceTests
         {
             var authorize = await client.CallToolAsync("add-bravo-authorize", new Dictionary<string, object?>
             {
-                ["path"] = Path.Combine(GetRepositoryRoot(), "samples", "SkillFixture", "SkillFixture.slnx"),
+                ["path"] = GetSkillFixtureSolution(),
                 ["parameters"] = new Dictionary<string, object?>
                 {
                     ["excelPath"] = workbook,
@@ -92,7 +92,7 @@ public sealed class McpToolSurfaceTests
 
             var export = await client.CallToolAsync("export-controller-actions", new Dictionary<string, object?>
             {
-                ["path"] = Path.Combine(GetRepositoryRoot(), "samples", "SkillFixture", "SkillFixture.slnx"),
+                ["path"] = GetSkillFixtureSolution(),
                 ["parameters"] = new Dictionary<string, object?>
                 {
                     ["excelPath"] = exportPath,
@@ -111,4 +111,7 @@ public sealed class McpToolSurfaceTests
     }
 
     private static string GetRepositoryRoot() => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../"));
+
+    private static string GetSkillFixtureSolution() => Path.Combine(
+        GetRepositoryRoot(), "tests", "RoslynMcp.Tests", "Fixtures", "SkillFixture", "SkillFixture.slnx");
 }

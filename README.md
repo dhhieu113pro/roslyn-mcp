@@ -120,7 +120,7 @@ Request a preview first and apply only after reviewing the returned changes.
 
 ```json
 {
-  "path": "samples/SkillFixture/SkillFixture.slnx",
+  "path": "MyProduct.sln",
   "parameters": {
     "query": "PaymentService",
     "kindFilter": "Class",

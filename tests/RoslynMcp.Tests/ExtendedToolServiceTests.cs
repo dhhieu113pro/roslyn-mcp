@@ -6,7 +6,7 @@ namespace RoslynMcp.Tests;
 public sealed class ExtendedToolServiceTests
 {
     private static readonly string Root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../"));
-    private static readonly string Solution = Path.Combine(Root, "samples", "SkillFixture", "SkillFixture.slnx");
+    private static readonly string Solution = Path.Combine(Root, "tests", "RoslynMcp.Tests", "Fixtures", "SkillFixture", "SkillFixture.slnx");
 
     [Fact]
     public async Task ExecuteAsync_RunsTypedQueriesAndDiagnostics()
