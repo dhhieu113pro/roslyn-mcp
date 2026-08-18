@@ -1,11 +1,41 @@
 # RoslynMcp
 
+<!-- mcp-name: io.github.dhhieu113pro/roslyn-mcp -->
+
+[![NuGet](https://img.shields.io/nuget/v/RoslynMcp.Dnx.svg)](https://www.nuget.org/packages/RoslynMcp.Dnx/)
+[![CI](https://github.com/dhhieu113pro/roslyn-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/dhhieu113pro/roslyn-mcp/actions/workflows/ci.yml)
+
 RoslynMcp is a .NET 10 stdio server exposing semantic C# navigation, analysis,
 generation, and refactoring through the Model Context Protocol. It uses the
 official C# MCP SDK 2.0 and implements the 2026-07-28 protocol while retaining
 the SDK's compatibility with older MCP clients.
 
-## Run
+## Run from NuGet with `dnx`
+
+Install the .NET 10 SDK, then run the latest release directly from NuGet.org:
+
+```bash
+dnx RoslynMcp.Dnx --yes
+```
+
+For reproducible MCP configuration, pin a version:
+
+```json
+{
+  "servers": {
+    "roslyn": {
+      "type": "stdio",
+      "command": "dnx",
+      "args": ["RoslynMcp.Dnx@1.0.0", "--yes"]
+    }
+  }
+}
+```
+
+The NuGet package ID includes `.Dnx` because `RoslynMcp` is owned by a different
+publisher on NuGet.org. The executable tool command remains `RoslynMcp`.
+
+## Run from source
 
 ```bash
 dotnet run --project src/RoslynMcp/RoslynMcp.csproj
@@ -146,3 +176,24 @@ MCP, lists all tools, and invokes `diagnose`.
 
 The repository-scoped `roslyn-investigate` skill instructs Codex to prefer these
 semantic tools for C# symbol and relationship investigation.
+
+## Release
+
+The `ci.yml` workflow builds and exercises a NuGet package on every pull request
+and push. A SemVer tag on `main` additionally publishes the already-verified
+package to NuGet.org through trusted publishing:
+
+```bash
+git tag -a v1.0.0 -m "v1.0.0"
+git push origin v1.0.0
+```
+
+The workflow derives the NuGet version, embedded MCP manifest version, assembly
+version, and MCP handshake version from the tag. The protected GitHub
+environment must remain named `production`, and the trusted-publishing workflow
+must remain `.github/workflows/ci.yml`.
+
+## License
+
+RoslynMcp is licensed under the [MIT License](LICENSE). Third-party license
+details are recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

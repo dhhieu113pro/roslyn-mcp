@@ -13,9 +13,29 @@ def run(arguments: list[str], repository: Path) -> None:
 
 def main() -> int:
     repository = Path(__file__).resolve().parent.parent
+    package_version = "0.0.0-local"
+    package_directory = repository / "artifacts" / "packages" / "test"
     try:
         run(["dotnet", "test", "RoslynMcp.slnx", "--configuration", "Release"], repository)
         run([sys.executable, "scripts/validate-skills.py"], repository)
+        run(
+            [
+                "dotnet",
+                "pack",
+                "src/RoslynMcp/RoslynMcp.csproj",
+                "--configuration",
+                "Release",
+                "--no-restore",
+                "--output",
+                str(package_directory),
+                f"-p:Version={package_version}",
+            ],
+            repository,
+        )
+        run(
+            [sys.executable, "scripts/test-package.py", str(package_directory), package_version],
+            repository,
+        )
     except subprocess.CalledProcessError as exception:
         return exception.returncode
 

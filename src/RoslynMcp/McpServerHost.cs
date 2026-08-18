@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -15,7 +16,14 @@ public static class McpServerHost
         builder.Services
             .AddMcpServer(options =>
             {
-                options.ServerInfo = new() { Name = "RoslynMcp", Version = "1.0.0" };
+                var informationalVersion = typeof(McpServerHost).Assembly
+                    .GetCustomAttribute<AssemblyInformationalVersionAttribute>()!
+                    .InformationalVersion;
+                options.ServerInfo = new()
+                {
+                    Name = "RoslynMcp",
+                    Version = informationalVersion.Split('+', 2)[0]
+                };
             })
             .WithStdioServerTransport()
             .WithTools<RoslynTools>();
