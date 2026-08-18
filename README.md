@@ -20,60 +20,64 @@ typed `parameters` object according to the generated MCP input schema.
 
 ## Tools
 
-RoslynMcp exposes exactly these 41 tools.
+RoslynMcp exposes exactly these 42 tools.
+
+### Authorization automation
+
+1. `add-bravo-authorize`
 
 ### Navigation and analysis
 
-1. `diagnose`
-2. `find-references`
-3. `find-callers`
-4. `find-implementations`
-5. `go-to-definition`
-6. `search-symbols`
-7. `get-diagnostics`
-8. `get-code-metrics`
-9. `analyze-control-flow`
-10. `analyze-data-flow`
-11. `get-document-outline`
-12. `get-symbol-info`
-13. `get-type-hierarchy`
+2. `diagnose`
+3. `find-references`
+4. `find-callers`
+5. `find-implementations`
+6. `go-to-definition`
+7. `search-symbols`
+8. `get-diagnostics`
+9. `get-code-metrics`
+10. `analyze-control-flow`
+11. `analyze-data-flow`
+12. `get-document-outline`
+13. `get-symbol-info`
+14. `get-type-hierarchy`
 
 ### Extract, move, and signature refactorings
 
-14. `extract-method`
-15. `extract-variable`
-16. `extract-constant`
-17. `extract-interface`
-18. `extract-base-class`
-19. `introduce-parameter`
-20. `rename-symbol`
-21. `inline-variable`
-22. `change-signature`
-23. `encapsulate-field`
-24. `move-type-to-file`
-25. `move-type-to-namespace`
+15. `extract-method`
+16. `extract-variable`
+17. `extract-constant`
+18. `extract-interface`
+19. `extract-base-class`
+20. `introduce-parameter`
+21. `rename-symbol`
+22. `inline-variable`
+23. `change-signature`
+24. `encapsulate-field`
+25. `move-type-to-file`
+26. `move-type-to-namespace`
 
 ### Conversions
 
-26. `convert-to-async`
-27. `convert-expression-body`
-28. `convert-property`
-29. `convert-foreach-linq`
-30. `convert-to-interpolated-string`
-31. `convert-to-pattern-matching`
+27. `convert-to-async`
+28. `convert-expression-body`
+29. `convert-property`
+30. `convert-foreach-linq`
+31. `convert-to-interpolated-string`
+32. `convert-to-pattern-matching`
 
 ### Generation, organization, and formatting
 
-32. `generate-constructor`
-33. `generate-equals-hashcode`
-34. `generate-overrides`
-35. `generate-tostring`
-36. `implement-interface`
-37. `add-null-checks`
-38. `add-missing-usings`
-39. `remove-unused-usings`
-40. `sort-usings`
-41. `format-document`
+33. `generate-constructor`
+34. `generate-equals-hashcode`
+35. `generate-overrides`
+36. `generate-tostring`
+37. `implement-interface`
+38. `add-null-checks`
+39. `add-missing-usings`
+40. `remove-unused-usings`
+41. `sort-usings`
+42. `format-document`
 
 Mutating tools support the `preview` contract provided by `RoslynMcp.Core`.
 Request a preview first and apply only after reviewing the returned changes.
@@ -108,6 +112,27 @@ Request a preview first and apply only after reviewing the returned changes.
 }
 ```
 
+`add-bravo-authorize` preview:
+
+```json
+{
+  "path": "MyProduct.sln",
+  "parameters": {
+    "excelPath": "authorization.xlsx",
+    "sheetName": "Permissions",
+    "preview": true
+  }
+}
+```
+
+The `.xlsx` worksheet must contain `Controller Name`, `Action Name`, and `Claims`
+columns. Separate multiple claims with commas, semicolons, or line breaks. Short
+claim names such as `Companies_Retrieve` are normalized to direct constant
+references such as `BravoClaimConstants.Companies_Retrieve`. The generated
+attribute contains only the `claims` argument. Preview is the default, existing
+conflicting attributes block the whole batch, and apply writes nothing unless
+every row validates successfully.
+
 ## Build and test
 
 ```bash
@@ -115,7 +140,7 @@ dotnet build RoslynMcp.slnx
 dotnet test RoslynMcp.slnx --configuration Release
 ```
 
-The tests enforce the exact 41-tool discovery surface and exercise the Roslyn
+The tests enforce the exact 42-tool discovery surface and exercise the Roslyn
 services. The integration suite launches the built server over stdio, negotiates
 MCP, lists all tools, and invokes `diagnose`.
 

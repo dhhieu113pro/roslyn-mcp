@@ -9,6 +9,13 @@ namespace RoslynMcp;
 [ExcludeFromCodeCoverage(Justification = "Declarative MCP adapters are covered by the tool-surface and protocol integration tests.")]
 public sealed class RoslynTools
 {
+    [McpServerTool(Name = "add-bravo-authorize"), Description("Add BravoAuthorize claim attributes to controller actions from an Excel mapping, with preview by default.")]
+    public static Task<AddBravoAuthorizeResult> AddBravoAuthorize(
+        string path,
+        AddBravoAuthorizeParams parameters,
+        CancellationToken cancellationToken) =>
+        BravoAuthorizeService.ExecuteAsync(path, parameters, cancellationToken);
+
     [McpServerTool(Name = "diagnose"), Description("Check the Roslyn/MSBuild environment and optionally load a workspace.")]
     public static Task<object> Diagnose(string path, CancellationToken cancellationToken) =>
         ExtendedToolService.ExecuteAsync(path, "diagnose", null, cancellationToken);

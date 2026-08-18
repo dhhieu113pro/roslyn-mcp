@@ -8,7 +8,7 @@ public sealed class McpToolSurfaceTests
 {
     private static readonly string[] ExpectedTools =
     [
-        "add-missing-usings", "add-null-checks", "analyze-control-flow", "analyze-data-flow",
+        "add-bravo-authorize", "add-missing-usings", "add-null-checks", "analyze-control-flow", "analyze-data-flow",
         "change-signature", "convert-expression-body", "convert-foreach-linq", "convert-property",
         "convert-to-async", "convert-to-interpolated-string", "convert-to-pattern-matching", "diagnose",
         "encapsulate-field", "extract-base-class", "extract-constant", "extract-interface", "extract-method",
@@ -29,7 +29,7 @@ public sealed class McpToolSurfaceTests
             .Order()
             .ToArray();
 
-        Assert.Equal(41, actual.Length);
+        Assert.Equal(42, actual.Length);
         Assert.Equal(ExpectedTools.Order(), actual);
     }
 
@@ -64,6 +64,35 @@ public sealed class McpToolSurfaceTests
         });
         Assert.NotEqual(true, search.IsError);
         Assert.Contains(search.Content, content => content.ToString()!.Contains("PaymentService", StringComparison.Ordinal));
+
+        var workbook = BravoAuthorizeExcelReaderTests.CreateWorkbook("Permissions", worksheet =>
+        {
+            worksheet.Cells[1, 1].Value = "Controller Name";
+            worksheet.Cells[1, 2].Value = "Action Name";
+            worksheet.Cells[1, 3].Value = "Claims";
+            worksheet.Cells[2, 1].Value = "CompanyController";
+            worksheet.Cells[2, 2].Value = "SearchAsync";
+            worksheet.Cells[2, 3].Value = "Companies_Retrieve; Companies_All";
+        });
+        try
+        {
+            var authorize = await client.CallToolAsync("add-bravo-authorize", new Dictionary<string, object?>
+            {
+                ["path"] = Path.Combine(GetRepositoryRoot(), "samples", "SkillFixture", "SkillFixture.slnx"),
+                ["parameters"] = new Dictionary<string, object?>
+                {
+                    ["excelPath"] = workbook,
+                    ["sheetName"] = "Permissions",
+                    ["preview"] = true
+                }
+            });
+            Assert.NotEqual(true, authorize.IsError);
+            Assert.Contains(authorize.Content, content => content.ToString()!.Contains("Companies_Retrieve", StringComparison.Ordinal));
+        }
+        finally
+        {
+            File.Delete(workbook);
+        }
     }
 
     private static string GetRepositoryRoot() => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../"));
