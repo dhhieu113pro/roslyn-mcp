@@ -50,64 +50,65 @@ typed `parameters` object according to the generated MCP input schema.
 
 ## Tools
 
-RoslynMcp exposes exactly these 42 tools.
+RoslynMcp exposes exactly these 43 tools.
 
 ### Authorization automation
 
 1. `add-bravo-authorize`
+2. `export-controller-actions`
 
 ### Navigation and analysis
 
-2. `diagnose`
-3. `find-references`
-4. `find-callers`
-5. `find-implementations`
-6. `go-to-definition`
-7. `search-symbols`
-8. `get-diagnostics`
-9. `get-code-metrics`
-10. `analyze-control-flow`
-11. `analyze-data-flow`
-12. `get-document-outline`
-13. `get-symbol-info`
-14. `get-type-hierarchy`
+3. `diagnose`
+4. `find-references`
+5. `find-callers`
+6. `find-implementations`
+7. `go-to-definition`
+8. `search-symbols`
+9. `get-diagnostics`
+10. `get-code-metrics`
+11. `analyze-control-flow`
+12. `analyze-data-flow`
+13. `get-document-outline`
+14. `get-symbol-info`
+15. `get-type-hierarchy`
 
 ### Extract, move, and signature refactorings
 
-15. `extract-method`
-16. `extract-variable`
-17. `extract-constant`
-18. `extract-interface`
-19. `extract-base-class`
-20. `introduce-parameter`
-21. `rename-symbol`
-22. `inline-variable`
-23. `change-signature`
-24. `encapsulate-field`
-25. `move-type-to-file`
-26. `move-type-to-namespace`
+16. `extract-method`
+17. `extract-variable`
+18. `extract-constant`
+19. `extract-interface`
+20. `extract-base-class`
+21. `introduce-parameter`
+22. `rename-symbol`
+23. `inline-variable`
+24. `change-signature`
+25. `encapsulate-field`
+26. `move-type-to-file`
+27. `move-type-to-namespace`
 
 ### Conversions
 
-27. `convert-to-async`
-28. `convert-expression-body`
-29. `convert-property`
-30. `convert-foreach-linq`
-31. `convert-to-interpolated-string`
-32. `convert-to-pattern-matching`
+28. `convert-to-async`
+29. `convert-expression-body`
+30. `convert-property`
+31. `convert-foreach-linq`
+32. `convert-to-interpolated-string`
+33. `convert-to-pattern-matching`
 
 ### Generation, organization, and formatting
 
-33. `generate-constructor`
-34. `generate-equals-hashcode`
-35. `generate-overrides`
-36. `generate-tostring`
-37. `implement-interface`
-38. `add-null-checks`
-39. `add-missing-usings`
-40. `remove-unused-usings`
-41. `sort-usings`
-42. `format-document`
+34. `generate-constructor`
+35. `generate-equals-hashcode`
+36. `generate-overrides`
+37. `generate-tostring`
+38. `implement-interface`
+39. `add-null-checks`
+40. `add-missing-usings`
+41. `remove-unused-usings`
+42. `sort-usings`
+43. `format-document`
 
 Mutating tools support the `preview` contract provided by `RoslynMcp.Core`.
 Request a preview first and apply only after reviewing the returned changes.
@@ -155,13 +156,35 @@ Request a preview first and apply only after reviewing the returned changes.
 }
 ```
 
+`export-controller-actions` review workbook:
+
+```json
+{
+  "path": "MyProduct.sln",
+  "parameters": {
+    "excelPath": "controller-actions.xlsx",
+    "sheetName": "Actions",
+    "includeAuthorized": false,
+    "overwrite": false
+  }
+}
+```
+
+The exported workbook contains `Controller Name`, `Action Name`, `Parameter
+Types`, `Method`, and `Claims`. It exports declared public controller actions,
+excludes `[NonAction]` and `[AllowAnonymous]`, records GET/POST for review, and
+highlights the Claims column for input. By default, actions that already have
+`[BravoAuthorize]` are omitted. Set `includeAuthorized` to `true` to include them
+with their current claims prefilled. The export never changes source code.
+
 The `.xlsx` worksheet must contain `Controller Name`, `Action Name`, and `Claims`
 columns. Separate multiple claims with commas, semicolons, or line breaks. Short
 claim names such as `Companies_Retrieve` are normalized to direct constant
 references such as `BravoClaimConstants.Companies_Retrieve`. The generated
 attribute contains only the `claims` argument. Preview is the default, existing
 conflicting attributes block the whole batch, and apply writes nothing unless
-every row validates successfully.
+every row validates successfully. Scanner workbooks may also contain `Parameter
+Types` for overload matching and a review-only `Method` column.
 
 ## Build and test
 
@@ -170,7 +193,7 @@ dotnet build RoslynMcp.slnx
 dotnet test RoslynMcp.slnx --configuration Release
 ```
 
-The tests enforce the exact 42-tool discovery surface and exercise the Roslyn
+The tests enforce the exact 43-tool discovery surface and exercise the Roslyn
 services. The integration suite launches the built server over stdio, negotiates
 MCP, lists all tools, and invokes `diagnose`.
 

@@ -12,7 +12,7 @@ public sealed class McpToolSurfaceTests
         "change-signature", "convert-expression-body", "convert-foreach-linq", "convert-property",
         "convert-to-async", "convert-to-interpolated-string", "convert-to-pattern-matching", "diagnose",
         "encapsulate-field", "extract-base-class", "extract-constant", "extract-interface", "extract-method",
-        "extract-variable", "find-callers", "find-implementations", "find-references", "format-document",
+        "extract-variable", "export-controller-actions", "find-callers", "find-implementations", "find-references", "format-document",
         "generate-constructor", "generate-equals-hashcode", "generate-overrides", "generate-tostring",
         "get-code-metrics", "get-diagnostics", "get-document-outline", "get-symbol-info", "get-type-hierarchy",
         "go-to-definition", "implement-interface", "inline-variable", "introduce-parameter", "move-type-to-file",
@@ -29,7 +29,7 @@ public sealed class McpToolSurfaceTests
             .Order()
             .ToArray();
 
-        Assert.Equal(42, actual.Length);
+        Assert.Equal(43, actual.Length);
         Assert.Equal(ExpectedTools.Order(), actual);
     }
 
@@ -74,6 +74,7 @@ public sealed class McpToolSurfaceTests
             worksheet.Cells[2, 2].Value = "SearchAsync";
             worksheet.Cells[2, 3].Value = "Companies_Retrieve; Companies_All";
         });
+        var exportPath = Path.Combine(Path.GetTempPath(), $"mcp-actions-{Guid.NewGuid():N}.xlsx");
         try
         {
             var authorize = await client.CallToolAsync("add-bravo-authorize", new Dictionary<string, object?>
@@ -88,10 +89,24 @@ public sealed class McpToolSurfaceTests
             });
             Assert.NotEqual(true, authorize.IsError);
             Assert.Contains(authorize.Content, content => content.ToString()!.Contains("Companies_Retrieve", StringComparison.Ordinal));
+
+            var export = await client.CallToolAsync("export-controller-actions", new Dictionary<string, object?>
+            {
+                ["path"] = Path.Combine(GetRepositoryRoot(), "samples", "SkillFixture", "SkillFixture.slnx"),
+                ["parameters"] = new Dictionary<string, object?>
+                {
+                    ["excelPath"] = exportPath,
+                    ["sheetName"] = "Actions"
+                }
+            });
+            Assert.NotEqual(true, export.IsError);
+            Assert.True(File.Exists(exportPath));
+            Assert.Contains(export.Content, content => content.ToString()!.Contains("SearchAsync", StringComparison.Ordinal));
         }
         finally
         {
             File.Delete(workbook);
+            File.Delete(exportPath);
         }
     }
 

@@ -40,6 +40,7 @@ public static class BravoAuthorizeExcelReader
         var controllerColumn = RequireHeader(headers, "controllername", "Controller Name");
         var actionColumn = RequireHeader(headers, "actionname", "Action Name");
         var claimsColumn = RequireHeader(headers, "claims", "Claims");
+        headers.TryGetValue("parametertypes", out var parameterTypesColumn);
         var rows = new List<BravoAuthorizeMapping>();
 
         for (var row = worksheet.Dimension.Start.Row + 1; row <= worksheet.Dimension.End.Row; row++)
@@ -58,7 +59,11 @@ public static class BravoAuthorizeExcelReader
                 .ToArray();
             if (claims.Length == 0)
                 throw new ArgumentException($"Excel row {row} must contain at least one claim.", nameof(excelPath));
-            rows.Add(new(row, controller, action, claims));
+            IReadOnlyList<string>? parameterTypes = parameterTypesColumn == 0
+                ? null
+                : worksheet.Cells[row, parameterTypesColumn].Text
+                    .Split([';', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            rows.Add(new(row, controller, action, claims, parameterTypes));
         }
 
         return rows;

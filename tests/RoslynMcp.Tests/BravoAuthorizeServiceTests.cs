@@ -70,6 +70,25 @@ public sealed class BravoAuthorizeServiceTests
         }
     }
 
+    [Fact]
+    public async Task ExecuteAsync_UsesParameterTypesToResolveOverloadedActions()
+    {
+        var workbook = CreateMappingWithParameters(
+            ("CompanyController", "OverloadedAsync", "", "Companies_Retrieve"),
+            ("CompanyController", "OverloadedAsync", "int", "Companies_All"));
+        try
+        {
+            var result = await BravoAuthorizeService.ExecuteAsync(Solution, new() { ExcelPath = workbook });
+            Assert.Equal(2, result.Rows.Count);
+            Assert.All(result.Rows, row => Assert.Equal("preview", row.Status));
+            Assert.Equal(2, result.Summary.Changed);
+        }
+        finally
+        {
+            File.Delete(workbook);
+        }
+    }
+
     [Theory]
     [InlineData("AlreadyAuthorized", "Companies_All; Companies_Retrieve", "unchanged")]
     [InlineData("ConflictingAuthorization", "Companies_All", "conflict")]
@@ -77,6 +96,27 @@ public sealed class BravoAuthorizeServiceTests
         string action, string claims, string expectedStatus)
     {
         var workbook = CreateMapping(("CompanyController", action, claims));
+        try
+        {
+            var result = await BravoAuthorizeService.ExecuteAsync(Solution, new() { ExcelPath = workbook });
+            Assert.Equal(expectedStatus, Assert.Single(result.Rows).Status);
+        }
+        finally
+        {
+            File.Delete(workbook);
+        }
+    }
+
+    [Theory]
+    [InlineData("SecuredController", "Dashboard", "Companies_All", "unchanged")]
+    [InlineData("SecuredController", "Dashboard", "Companies_Retrieve", "conflict")]
+    [InlineData("SecuredController", "Details", "Companies_All; Companies_Retrieve", "unchanged")]
+    [InlineData("SecuredController", "Details", "Companies_Retrieve", "conflict")]
+    [InlineData("CompanyController", "PositionalAuthorization", "Companies_Retrieve", "unchanged")]
+    public async Task ExecuteAsync_HandlesControllerAndPositionalAuthorization(
+        string controller, string action, string claims, string expectedStatus)
+    {
+        var workbook = CreateMapping((controller, action, claims));
         try
         {
             var result = await BravoAuthorizeService.ExecuteAsync(Solution, new() { ExcelPath = workbook });
@@ -189,6 +229,25 @@ public sealed class BravoAuthorizeServiceTests
                 worksheet.Cells[index + 2, 1].Value = rows[index].Controller;
                 worksheet.Cells[index + 2, 2].Value = rows[index].Action;
                 worksheet.Cells[index + 2, 3].Value = rows[index].Claims;
+            }
+        });
+
+    private static string CreateMappingWithParameters(
+        params (string Controller, string Action, string ParameterTypes, string Claims)[] rows) =>
+        BravoAuthorizeExcelReaderTests.CreateWorkbook("Actions", worksheet =>
+        {
+            worksheet.Cells[1, 1].Value = "Controller Name";
+            worksheet.Cells[1, 2].Value = "Action Name";
+            worksheet.Cells[1, 3].Value = "Parameter Types";
+            worksheet.Cells[1, 4].Value = "Method";
+            worksheet.Cells[1, 5].Value = "Claims";
+            for (var index = 0; index < rows.Length; index++)
+            {
+                worksheet.Cells[index + 2, 1].Value = rows[index].Controller;
+                worksheet.Cells[index + 2, 2].Value = rows[index].Action;
+                worksheet.Cells[index + 2, 3].Value = rows[index].ParameterTypes;
+                worksheet.Cells[index + 2, 4].Value = "GET";
+                worksheet.Cells[index + 2, 5].Value = rows[index].Claims;
             }
         });
 }

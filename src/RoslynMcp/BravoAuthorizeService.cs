@@ -54,10 +54,15 @@ public static class BravoAuthorizeService
             var actionMatches = controller.Symbol.GetMembers(mapping.ActionName)
                 .OfType<IMethodSymbol>()
                 .Where(IsControllerAction)
+                .Where(method => mapping.ParameterTypes is null ||
+                    ControllerActionExporter.ParameterTypesMatch(method, mapping.ParameterTypes))
                 .ToArray();
             if (actionMatches.Length == 0)
             {
-                rows.Add(CreateResult(mapping, "action-not-found", message: $"Action '{mapping.ActionName}' was not found in '{controller.Symbol.Name}'."));
+                var signature = mapping.ParameterTypes is null
+                    ? mapping.ActionName
+                    : $"{mapping.ActionName}({string.Join(", ", mapping.ParameterTypes)})";
+                rows.Add(CreateResult(mapping, "action-not-found", message: $"Action '{signature}' was not found in '{controller.Symbol.Name}'."));
                 continue;
             }
             if (actionMatches.Length > 1)
@@ -85,14 +90,28 @@ public static class BravoAuthorizeService
                 rows.Add(CreateResult(mapping, "conflict", document.FilePath, GetLine(action), "Action has multiple BravoAuthorize attributes."));
                 continue;
             }
-            if (existing.Length == 1)
+
+            var controllerAttributes = await GetControllerBravoAuthorizeAttributesAsync(controller.Symbol, cancellationToken);
+            if (controllerAttributes.Length > 1)
             {
-                var existingClaims = ReadExistingClaims(existing[0]);
-                if (existingClaims.SetEquals(mapping.Claims))
-                    rows.Add(CreateResult(mapping, "unchanged", document.FilePath, GetLine(action)));
+                rows.Add(CreateResult(mapping, "conflict", document.FilePath, GetLine(action),
+                    "Controller has multiple BravoAuthorize attributes."));
+                continue;
+            }
+            if (existing.Length == 1 || controllerAttributes.Length == 1)
+            {
+                var effectiveClaims = new HashSet<string>(StringComparer.Ordinal);
+                if (controllerAttributes.Length == 1)
+                    effectiveClaims.UnionWith(ReadExistingClaims(controllerAttributes[0]));
+                if (existing.Length == 1)
+                    effectiveClaims.UnionWith(ReadExistingClaims(existing[0]));
+
+                if (effectiveClaims.SetEquals(mapping.Claims))
+                    rows.Add(CreateResult(mapping, "unchanged", document.FilePath, GetLine(action),
+                        "Action is already protected by the effective BravoAuthorize attributes."));
                 else
                     rows.Add(CreateResult(mapping, "conflict", document.FilePath, GetLine(action),
-                        "Action already has a BravoAuthorize attribute with different claims."));
+                        "Existing action or controller BravoAuthorize attributes have different effective claims."));
                 continue;
             }
 
@@ -133,26 +152,30 @@ public static class BravoAuthorizeService
     {
         var requested = requestedName.Trim();
         var requestedShortName = requested.Split('.').Last();
-        if (!requestedShortName.EndsWith("Controller", StringComparison.OrdinalIgnoreCase))
-            requestedShortName += "Controller";
+        var candidateNames = requestedShortName.EndsWith("Controller", StringComparison.OrdinalIgnoreCase)
+            ? new[] { requestedShortName }
+            : new[] { requestedShortName, requestedShortName + "Controller" };
         var matches = new List<ControllerMatch>();
 
         foreach (var project in solution.Projects.Where(project => project.Language == LanguageNames.CSharp))
-        {
-            var declarations = await SymbolFinder.FindDeclarationsAsync(
-                project, requestedShortName, ignoreCase: true, SymbolFilter.Type, cancellationToken);
-            matches.AddRange(declarations.OfType<INamedTypeSymbol>()
-                .Where(symbol => symbol.TypeKind == TypeKind.Class && IsRequestedController(symbol, requested, requestedShortName))
-                .Select(symbol => new ControllerMatch(symbol)));
-        }
+            foreach (var candidateName in candidateNames)
+            {
+                var declarations = await SymbolFinder.FindDeclarationsAsync(
+                    project, candidateName, ignoreCase: true, SymbolFilter.Type, cancellationToken);
+                matches.AddRange(declarations.OfType<INamedTypeSymbol>()
+                    .Where(symbol => symbol.TypeKind == TypeKind.Class && IsRequestedController(symbol, requested, candidateNames))
+                    .Select(symbol => new ControllerMatch(symbol)));
+            }
 
         return matches.DistinctBy(match => match.Symbol, SymbolEqualityComparer.Default).ToArray();
     }
 
-    private static bool IsRequestedController(INamedTypeSymbol symbol, string requested, string requestedShortName)
+    private static bool IsRequestedController(INamedTypeSymbol symbol, string requested, IReadOnlyList<string> candidateNames)
     {
-        if (!symbol.Name.EndsWith("Controller", StringComparison.Ordinal) ||
-            !symbol.Name.Equals(requestedShortName, StringComparison.OrdinalIgnoreCase))
+        var isController = symbol.Name.EndsWith("Controller", StringComparison.Ordinal) ||
+                           HasAttribute(symbol, "Controller");
+        if (!isController || HasAttribute(symbol, "NonController") ||
+            !candidateNames.Contains(symbol.Name, StringComparer.OrdinalIgnoreCase))
             return false;
         if (!requested.Contains('.'))
             return true;
@@ -161,6 +184,12 @@ public static class BravoAuthorizeService
         return qualified.Equals(requested, StringComparison.OrdinalIgnoreCase) ||
                qualified.Equals(requested + "Controller", StringComparison.OrdinalIgnoreCase);
     }
+
+    private static bool HasAttribute(ISymbol symbol, string shortName) =>
+        symbol.GetAttributes().Any(attribute =>
+            attribute.AttributeClass?.Name is { } name &&
+            (name.Equals(shortName, StringComparison.Ordinal) ||
+             name.Equals(shortName + "Attribute", StringComparison.Ordinal)));
 
     private static bool IsControllerAction(IMethodSymbol method) =>
         method.MethodKind == MethodKind.Ordinary &&
@@ -195,11 +224,27 @@ public static class BravoAuthorizeService
 
     private static HashSet<string> ReadExistingClaims(AttributeSyntax attribute) =>
         attribute.ArgumentList?.Arguments
-            .Where(argument => argument.NameColon?.Name.Identifier.ValueText == "claims")
-            .SelectMany(argument => argument.Expression.DescendantNodesAndSelf().OfType<MemberAccessExpressionSyntax>())
+            .Select((argument, index) => new { Argument = argument, Index = index })
+            .Where(item => item.Argument.NameColon?.Name.Identifier.ValueText == "claims" ||
+                           item.Argument.NameColon is null && item.Index == 0)
+            .SelectMany(item => item.Argument.Expression.DescendantNodesAndSelf().OfType<MemberAccessExpressionSyntax>())
             .Select(expression => expression.ToString().Replace(" ", string.Empty, StringComparison.Ordinal))
             .Where(value => value.StartsWith(ClaimTypeName + ".", StringComparison.Ordinal))
             .ToHashSet(StringComparer.Ordinal) ?? new(StringComparer.Ordinal);
+
+    private static async Task<AttributeSyntax[]> GetControllerBravoAuthorizeAttributesAsync(
+        INamedTypeSymbol controller,
+        CancellationToken cancellationToken)
+    {
+        var attributes = new List<AttributeSyntax>();
+        foreach (var reference in controller.DeclaringSyntaxReferences)
+        {
+            if (await reference.GetSyntaxAsync(cancellationToken) is TypeDeclarationSyntax declaration)
+                attributes.AddRange(declaration.AttributeLists.SelectMany(list => list.Attributes)
+                    .Where(IsBravoAuthorizeAttribute));
+        }
+        return attributes.ToArray();
+    }
 
     private static string BuildAttributeText(IReadOnlyList<string> claims)
     {
@@ -235,7 +280,7 @@ public static class BravoAuthorizeService
     {
         var duplicates = new Dictionary<int, string>();
         foreach (var group in mappings.GroupBy(mapping =>
-                     $"{NormalizeController(mapping.ControllerName)}|{mapping.ActionName.Trim()}",
+                     $"{NormalizeController(mapping.ControllerName)}|{mapping.ActionName.Trim()}|{FormatMappingParameterTypes(mapping.ParameterTypes)}",
                      StringComparer.OrdinalIgnoreCase).Where(group => group.Count() > 1))
         {
             var rows = string.Join(", ", group.Select(mapping => mapping.ExcelRow));
@@ -248,6 +293,9 @@ public static class BravoAuthorizeService
 
     private static string NormalizeController(string name) =>
         name.EndsWith("Controller", StringComparison.OrdinalIgnoreCase) ? name : name + "Controller";
+
+    private static string FormatMappingParameterTypes(IReadOnlyList<string>? parameterTypes) =>
+        parameterTypes is null ? "<unspecified>" : string.Join(";", parameterTypes.Select(type => type.Replace(" ", string.Empty, StringComparison.Ordinal)));
 
     private static BravoAuthorizeRowResult CreateResult(
         BravoAuthorizeMapping mapping,

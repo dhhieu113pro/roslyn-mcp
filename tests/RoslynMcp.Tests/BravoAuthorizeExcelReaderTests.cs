@@ -71,6 +71,34 @@ public sealed class BravoAuthorizeExcelReaderTests
         }
     }
 
+    [Fact]
+    public void Read_ImportsOptionalParameterTypesFromScannerWorkbook()
+    {
+        var path = CreateWorkbook("Actions", worksheet =>
+        {
+            worksheet.Cells[1, 1].Value = "Controller Name";
+            worksheet.Cells[1, 2].Value = "Action Name";
+            worksheet.Cells[1, 3].Value = "Parameter Types";
+            worksheet.Cells[1, 4].Value = "Method";
+            worksheet.Cells[1, 5].Value = "Claims";
+            worksheet.Cells[2, 1].Value = "CompanyController";
+            worksheet.Cells[2, 2].Value = "OverloadedAsync";
+            worksheet.Cells[2, 3].Value = "int; string";
+            worksheet.Cells[2, 4].Value = "POST";
+            worksheet.Cells[2, 5].Value = "Companies_Retrieve";
+        });
+
+        try
+        {
+            var mapping = Assert.Single(BravoAuthorizeExcelReader.Read(path));
+            Assert.Equal(["int", "string"], mapping.ParameterTypes);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     internal static string CreateWorkbook(string sheetName, Action<ExcelWorksheet> populate)
     {
         var path = Path.Combine(Path.GetTempPath(), $"bravo-{Guid.NewGuid():N}.xlsx");
