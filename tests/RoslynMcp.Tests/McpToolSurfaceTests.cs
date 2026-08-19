@@ -8,7 +8,7 @@ public sealed class McpToolSurfaceTests
 {
     private static readonly string[] ExpectedTools =
     [
-        "add-bravo-authorize", "add-missing-usings", "add-null-checks", "analyze-control-flow", "analyze-data-flow",
+        "add-authorize-attribute", "add-missing-usings", "add-null-checks", "analyze-control-flow", "analyze-data-flow",
         "change-signature", "convert-expression-body", "convert-foreach-linq", "convert-property",
         "convert-to-async", "convert-to-interpolated-string", "convert-to-pattern-matching", "diagnose",
         "encapsulate-field", "extract-base-class", "extract-constant", "extract-interface", "extract-method",
@@ -77,11 +77,12 @@ public sealed class McpToolSurfaceTests
         var exportPath = Path.Combine(Path.GetTempPath(), $"mcp-actions-{Guid.NewGuid():N}.xlsx");
         try
         {
-            var authorize = await client.CallToolAsync("add-bravo-authorize", new Dictionary<string, object?>
+            var authorize = await client.CallToolAsync("add-authorize-attribute", new Dictionary<string, object?>
             {
                 ["path"] = GetSkillFixtureSolution(),
                 ["parameters"] = new Dictionary<string, object?>
                 {
+                    ["authorizeAttributeName"] = "BravoAuthorize",
                     ["excelPath"] = workbook,
                     ["sheetName"] = "Permissions",
                     ["preview"] = true

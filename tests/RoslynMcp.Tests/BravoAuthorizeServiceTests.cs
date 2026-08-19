@@ -12,12 +12,13 @@ public sealed class BravoAuthorizeServiceTests
         try
         {
             var result = await BravoAuthorizeService.ExecuteAsync(Solution,
-                new() { ExcelPath = workbook, SheetName = "Permissions" });
+                new() { AuthorizeAttributeName = "CustomAuthorize", ExcelPath = workbook, SheetName = "Permissions" });
 
             var row = Assert.Single(result.Rows);
             Assert.True(result.Preview);
             Assert.False(result.Applied);
             Assert.Equal("preview", row.Status);
+            Assert.StartsWith("[CustomAuthorize(", row.GeneratedAttribute, StringComparison.Ordinal);
             Assert.Contains("BravoClaimConstants.Companies_Retrieve", row.GeneratedAttribute);
             Assert.DoesNotContain("nameof", row.GeneratedAttribute);
             Assert.DoesNotContain("roles", row.GeneratedAttribute);
@@ -42,7 +43,7 @@ public sealed class BravoAuthorizeServiceTests
         var workbook = CreateMapping((controller, action, claim));
         try
         {
-            var result = await BravoAuthorizeService.ExecuteAsync(Solution, new() { ExcelPath = workbook });
+            var result = await BravoAuthorizeService.ExecuteAsync(Solution, new() { AuthorizeAttributeName = "BravoAuthorize", ExcelPath = workbook });
             Assert.Equal(expectedStatus, Assert.Single(result.Rows).Status);
             Assert.False(result.Applied);
         }
@@ -60,7 +61,7 @@ public sealed class BravoAuthorizeServiceTests
             ("CompanyController", "SearchAsync", "Companies_All"));
         try
         {
-            var result = await BravoAuthorizeService.ExecuteAsync(Solution, new() { ExcelPath = workbook });
+            var result = await BravoAuthorizeService.ExecuteAsync(Solution, new() { AuthorizeAttributeName = "BravoAuthorize", ExcelPath = workbook });
             Assert.All(result.Rows, row => Assert.Equal("duplicate-row", row.Status));
             Assert.Equal(2, result.Summary.Conflicts);
         }
@@ -78,7 +79,7 @@ public sealed class BravoAuthorizeServiceTests
             ("CompanyController", "OverloadedAsync", "int", "Companies_All"));
         try
         {
-            var result = await BravoAuthorizeService.ExecuteAsync(Solution, new() { ExcelPath = workbook });
+            var result = await BravoAuthorizeService.ExecuteAsync(Solution, new() { AuthorizeAttributeName = "BravoAuthorize", ExcelPath = workbook });
             Assert.Equal(2, result.Rows.Count);
             Assert.All(result.Rows, row => Assert.Equal("preview", row.Status));
             Assert.Equal(2, result.Summary.Changed);
@@ -98,7 +99,7 @@ public sealed class BravoAuthorizeServiceTests
         var workbook = CreateMapping(("CompanyController", action, claims));
         try
         {
-            var result = await BravoAuthorizeService.ExecuteAsync(Solution, new() { ExcelPath = workbook });
+            var result = await BravoAuthorizeService.ExecuteAsync(Solution, new() { AuthorizeAttributeName = "BravoAuthorize", ExcelPath = workbook });
             Assert.Equal(expectedStatus, Assert.Single(result.Rows).Status);
         }
         finally
@@ -119,7 +120,7 @@ public sealed class BravoAuthorizeServiceTests
         var workbook = CreateMapping((controller, action, claims));
         try
         {
-            var result = await BravoAuthorizeService.ExecuteAsync(Solution, new() { ExcelPath = workbook });
+            var result = await BravoAuthorizeService.ExecuteAsync(Solution, new() { AuthorizeAttributeName = "BravoAuthorize", ExcelPath = workbook });
             Assert.Equal(expectedStatus, Assert.Single(result.Rows).Status);
         }
         finally
@@ -138,7 +139,7 @@ public sealed class BravoAuthorizeServiceTests
         try
         {
             var applied = await BravoAuthorizeService.ExecuteAsync(project,
-                new() { ExcelPath = workbook, Preview = false });
+                new() { AuthorizeAttributeName = "BravoAuthorize", ExcelPath = workbook, Preview = false });
 
             Assert.True(applied.Applied);
             Assert.Equal("applied", Assert.Single(applied.Rows).Status);
@@ -158,7 +159,7 @@ public sealed class BravoAuthorizeServiceTests
             Assert.DoesNotContain("module:", code);
 
             var secondRun = await BravoAuthorizeService.ExecuteAsync(project,
-                new() { ExcelPath = workbook, Preview = false });
+                new() { AuthorizeAttributeName = "BravoAuthorize", ExcelPath = workbook, Preview = false });
             Assert.False(secondRun.Applied);
             Assert.Equal("unchanged", Assert.Single(secondRun.Rows).Status);
         }
@@ -182,7 +183,7 @@ public sealed class BravoAuthorizeServiceTests
         try
         {
             var result = await BravoAuthorizeService.ExecuteAsync(project,
-                new() { ExcelPath = workbook, Preview = false });
+                new() { AuthorizeAttributeName = "BravoAuthorize", ExcelPath = workbook, Preview = false });
             Assert.False(result.Applied);
             Assert.Empty(result.ChangedFiles);
             Assert.Equal(before, await File.ReadAllTextAsync(source));

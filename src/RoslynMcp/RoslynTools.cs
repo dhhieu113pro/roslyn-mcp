@@ -16,7 +16,7 @@ public sealed class RoslynTools
         CancellationToken cancellationToken) =>
         ControllerActionExporter.ExecuteAsync(path, parameters, cancellationToken);
 
-    [McpServerTool(Name = "add-bravo-authorize"), Description("Add BravoAuthorize claim attributes to controller actions from an Excel mapping, with preview by default.")]
+    [McpServerTool(Name = "add-authorize-attribute"), Description("Add a named authorize attribute to controller actions from an Excel claim mapping, with preview by default.")]
     public static Task<AddBravoAuthorizeResult> AddBravoAuthorize(
         string path,
         AddBravoAuthorizeParams parameters,

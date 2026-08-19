@@ -11,7 +11,6 @@ namespace RoslynMcp;
 [ExcludeFromCodeCoverage(Justification = "Roslyn workspace integration is covered by end-to-end fixture tests.")]
 public static class BravoAuthorizeService
 {
-    private const string AttributeName = "BravoAuthorize";
     private const string ClaimTypeName = "BravoClaimConstants";
     private const string GeneratedAnnotationKind = "BravoAuthorizeGenerated";
 
@@ -21,6 +20,7 @@ public static class BravoAuthorizeService
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(parameters);
+        var attributeName = ValidateAttributeName(parameters.AuthorizeAttributeName);
         var mappings = BravoAuthorizeExcelReader.Read(parameters.ExcelPath, parameters.SheetName);
         var provider = new MSBuildWorkspaceProvider();
         using var context = await provider.CreateContextAsync(path, cancellationToken);
@@ -83,19 +83,19 @@ public static class BravoAuthorizeService
             }
 
             var existing = method.AttributeLists.SelectMany(list => list.Attributes)
-                .Where(IsBravoAuthorizeAttribute)
+                .Where(attribute => IsAuthorizeAttribute(attribute, attributeName))
                 .ToArray();
             if (existing.Length > 1)
             {
-                rows.Add(CreateResult(mapping, "conflict", document.FilePath, GetLine(action), "Action has multiple BravoAuthorize attributes."));
+                rows.Add(CreateResult(mapping, "conflict", document.FilePath, GetLine(action), $"Action has multiple {attributeName} attributes."));
                 continue;
             }
 
-            var controllerAttributes = await GetControllerBravoAuthorizeAttributesAsync(controller.Symbol, cancellationToken);
+            var controllerAttributes = await GetControllerAuthorizeAttributesAsync(controller.Symbol, attributeName, cancellationToken);
             if (controllerAttributes.Length > 1)
             {
                 rows.Add(CreateResult(mapping, "conflict", document.FilePath, GetLine(action),
-                    "Controller has multiple BravoAuthorize attributes."));
+                    $"Controller has multiple {attributeName} attributes."));
                 continue;
             }
             if (existing.Length == 1 || controllerAttributes.Length == 1)
@@ -108,14 +108,14 @@ public static class BravoAuthorizeService
 
                 if (effectiveClaims.SetEquals(mapping.Claims))
                     rows.Add(CreateResult(mapping, "unchanged", document.FilePath, GetLine(action),
-                        "Action is already protected by the effective BravoAuthorize attributes."));
+                        $"Action is already protected by the effective {attributeName} attributes."));
                 else
                     rows.Add(CreateResult(mapping, "conflict", document.FilePath, GetLine(action),
-                        "Existing action or controller BravoAuthorize attributes have different effective claims."));
+                        $"Existing action or controller {attributeName} attributes have different effective claims."));
                 continue;
             }
 
-            var attributeText = BuildAttributeText(mapping.Claims);
+            var attributeText = BuildAttributeText(attributeName, mapping.Claims);
             var attributeList = SyntaxFactory.ParseCompilationUnit($"{attributeText}\nclass Placeholder {{ }}")
                 .DescendantNodes().OfType<AttributeListSyntax>().Single()
                 .WithAdditionalAnnotations(Formatter.Annotation, new SyntaxAnnotation(GeneratedAnnotationKind));
@@ -123,7 +123,7 @@ public static class BravoAuthorizeService
             var root = (await document.GetSyntaxRootAsync(cancellationToken))!;
             var changedDocument = document.WithSyntaxRoot(root.ReplaceNode(method, changedMethod));
             changedDocument = await Formatter.FormatAsync(changedDocument, Formatter.Annotation, cancellationToken: cancellationToken);
-            changedDocument = await PolishGeneratedAttributeAsync(changedDocument, mapping.Claims, cancellationToken);
+            changedDocument = await PolishGeneratedAttributeAsync(changedDocument, attributeName, mapping.Claims, cancellationToken);
             solution = changedDocument.Project.Solution;
             touchedDocuments.Add(document.Id);
             rows.Add(CreateResult(mapping, "preview", document.FilePath, GetLine(action), generatedAttribute: attributeText));
@@ -136,7 +136,7 @@ public static class BravoAuthorizeService
         {
             var commit = await context.CommitChangesAsync(solution, cancellationToken);
             if (!commit.Success)
-                throw new InvalidOperationException(commit.Error ?? "Failed to commit BravoAuthorize changes.");
+                throw new InvalidOperationException(commit.Error ?? $"Failed to commit {attributeName} changes.");
             changedFiles = commit.FilesModified;
             applied = true;
             rows = rows.Select(row => row.Status == "preview" ? row with { Status = "applied" } : row).ToList();
@@ -216,10 +216,15 @@ public static class BravoAuthorizeService
         }).ToArray();
     }
 
-    private static bool IsBravoAuthorizeAttribute(AttributeSyntax attribute)
+    private static bool IsAuthorizeAttribute(AttributeSyntax attribute, string attributeName)
     {
         var name = attribute.Name.ToString().Split('.').Last();
-        return name is AttributeName or AttributeName + "Attribute";
+        var requestedName = attributeName.Split('.').Last();
+        var shortName = requestedName.EndsWith("Attribute", StringComparison.Ordinal)
+            ? requestedName[..^"Attribute".Length]
+            : requestedName;
+        return name.Equals(shortName, StringComparison.Ordinal) ||
+               name.Equals(shortName + "Attribute", StringComparison.Ordinal);
     }
 
     private static HashSet<string> ReadExistingClaims(AttributeSyntax attribute) =>
@@ -232,8 +237,9 @@ public static class BravoAuthorizeService
             .Where(value => value.StartsWith(ClaimTypeName + ".", StringComparison.Ordinal))
             .ToHashSet(StringComparer.Ordinal) ?? new(StringComparer.Ordinal);
 
-    private static async Task<AttributeSyntax[]> GetControllerBravoAuthorizeAttributesAsync(
+    private static async Task<AttributeSyntax[]> GetControllerAuthorizeAttributesAsync(
         INamedTypeSymbol controller,
+        string attributeName,
         CancellationToken cancellationToken)
     {
         var attributes = new List<AttributeSyntax>();
@@ -241,19 +247,20 @@ public static class BravoAuthorizeService
         {
             if (await reference.GetSyntaxAsync(cancellationToken) is TypeDeclarationSyntax declaration)
                 attributes.AddRange(declaration.AttributeLists.SelectMany(list => list.Attributes)
-                    .Where(IsBravoAuthorizeAttribute));
+                    .Where(attribute => IsAuthorizeAttribute(attribute, attributeName)));
         }
         return attributes.ToArray();
     }
 
-    private static string BuildAttributeText(IReadOnlyList<string> claims)
+    private static string BuildAttributeText(string attributeName, IReadOnlyList<string> claims)
     {
         var lines = claims.Select(claim => $"        {claim}");
-        return $"[{AttributeName}(\n    claims:\n    [\n{string.Join(",\n", lines)}\n    ])]";
+        return $"[{attributeName}(\n    claims:\n    [\n{string.Join(",\n", lines)}\n    ])]";
     }
 
     private static async Task<Document> PolishGeneratedAttributeAsync(
         Document document,
+        string attributeName,
         IReadOnlyList<string> claims,
         CancellationToken cancellationToken)
     {
@@ -268,12 +275,24 @@ public static class BravoAuthorizeService
         var continuation = indentation + indentationUnit;
         var itemIndentation = continuation + indentationUnit;
         var lines = claims.Select(claim => $"{itemIndentation}{claim}");
-        var text = $"[{AttributeName}(\n{continuation}claims:\n{continuation}[\n{string.Join(",\n", lines)}\n{continuation}])]";
+        var text = $"[{attributeName}(\n{continuation}claims:\n{continuation}[\n{string.Join(",\n", lines)}\n{continuation}])]";
         var polished = SyntaxFactory.ParseCompilationUnit($"{text}\nclass Placeholder {{ }}")
             .DescendantNodes().OfType<AttributeListSyntax>().Single()
             .WithLeadingTrivia(formatted.GetLeadingTrivia())
             .WithTrailingTrivia(formatted.GetTrailingTrivia());
         return document.WithSyntaxRoot(root.ReplaceNode(formatted, polished));
+    }
+
+    private static string ValidateAttributeName(string attributeName)
+    {
+        if (string.IsNullOrWhiteSpace(attributeName))
+            throw new ArgumentException("AuthorizeAttributeName is required.", nameof(attributeName));
+
+        var trimmed = attributeName.Trim();
+        var parsed = SyntaxFactory.ParseName(trimmed);
+        if (parsed.ContainsDiagnostics || parsed.ToString() != trimmed)
+            throw new ArgumentException($"'{attributeName}' is not a valid C# attribute name.", nameof(attributeName));
+        return trimmed;
     }
 
     private static Dictionary<int, string> FindDuplicateRows(IReadOnlyList<BravoAuthorizeMapping> mappings)

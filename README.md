@@ -54,7 +54,7 @@ RoslynMcp exposes exactly these 43 tools.
 
 ### Authorization automation
 
-1. `add-bravo-authorize`
+1. `add-authorize-attribute`
 2. `export-controller-actions`
 
 ### Navigation and analysis
@@ -143,12 +143,13 @@ Request a preview first and apply only after reviewing the returned changes.
 }
 ```
 
-`add-bravo-authorize` preview:
+`add-authorize-attribute` preview:
 
 ```json
 {
   "path": "MyProduct.sln",
   "parameters": {
+    "authorizeAttributeName": "BravoAuthorize",
     "excelPath": "authorization.xlsx",
     "sheetName": "Permissions",
     "preview": true
@@ -177,7 +178,9 @@ highlights the Claims column for input. By default, actions that already have
 `[BravoAuthorize]` are omitted. Set `includeAuthorized` to `true` to include them
 with their current claims prefilled. The export never changes source code.
 
-The `.xlsx` worksheet must contain `Controller Name`, `Action Name`, and `Claims`
+`authorizeAttributeName` is required and identifies the attribute to recognize and
+generate (for example, `BravoAuthorize` or `BravoAuthorizeAttribute`). The `.xlsx`
+worksheet must contain `Controller Name`, `Action Name`, and `Claims`
 columns. Separate multiple claims with commas, semicolons, or line breaks. Short
 claim names such as `Companies_Retrieve` are normalized to direct constant
 references such as `BravoClaimConstants.Companies_Retrieve`. The generated

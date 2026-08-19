@@ -46,7 +46,7 @@ public sealed class ControllerActionExporterTests
             }
 
             var preview = await BravoAuthorizeService.ExecuteAsync(Solution,
-                new() { ExcelPath = output, SheetName = "Review" });
+                new() { AuthorizeAttributeName = "BravoAuthorize", ExcelPath = output, SheetName = "Review" });
             Assert.Equal(5, preview.Rows.Count);
             Assert.All(preview.Rows, row => Assert.Equal("preview", row.Status));
         }
@@ -150,7 +150,8 @@ public sealed class ControllerActionExporterTests
                     sheet.Cells[row, 5].Value = "Companies_Retrieve";
                 package.Save();
             }
-            var preview = await BravoAuthorizeService.ExecuteAsync(project, new() { ExcelPath = output });
+            var preview = await BravoAuthorizeService.ExecuteAsync(project,
+                new() { AuthorizeAttributeName = "BravoAuthorize", ExcelPath = output });
             Assert.Equal(3, preview.Rows.Count);
             Assert.All(preview.Rows, row => Assert.Equal("preview", row.Status));
         }

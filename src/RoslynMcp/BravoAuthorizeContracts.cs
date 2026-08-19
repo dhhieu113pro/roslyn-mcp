@@ -6,6 +6,9 @@ namespace RoslynMcp;
 [ExcludeFromCodeCoverage(Justification = "Serialization contracts contain no executable behavior.")]
 public sealed class AddBravoAuthorizeParams
 {
+    [Description("Authorize attribute name to add, such as BravoAuthorize or BravoAuthorizeAttribute.")]
+    public required string AuthorizeAttributeName { get; init; }
+
     [Description("Absolute or working-directory-relative path to the .xlsx authorization mapping.")]
     public required string ExcelPath { get; init; }
 
