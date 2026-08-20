@@ -114,62 +114,78 @@ Mutating tools support the `preview` contract provided by `RoslynMcp.Core`.
 Request a preview first and apply only after reviewing the returned changes.
 `format-document` follows the underlying operation's immediate-apply behavior.
 
-## Example tool input
+## Tool input examples
 
-`search-symbols`:
+These examples use working-directory-relative paths. Replace the sample solution,
+source files, symbols, and line positions with values from your workspace.
 
-```json
-{
-  "path": "MyProduct.sln",
-  "parameters": {
-    "query": "PaymentService",
-    "kindFilter": "Class",
-    "maxResults": 20
-  }
-}
-```
+### Authorization automation examples
 
-`rename-symbol` preview:
+| Tool | Example input |
+|------|---------------|
+| `add-authorize-attribute` | `{"path":"MyProduct.sln","parameters":{"authorizeAttributeName":"BravoAuthorize","excelPath":"authorization.xlsx","sheetName":"Permissions","preview":true}}` |
+| `export-controller-actions` | `{"path":"MyProduct.sln","parameters":{"excelPath":"controller-actions.xlsx","sheetName":"Actions","includeAuthorized":false,"overwrite":false}}` |
 
-```json
-{
-  "path": "MyProduct.sln",
-  "parameters": {
-    "sourceFile": "/repo/src/OrderService.cs",
-    "symbolName": "OrderService",
-    "newName": "OrderProcessor",
-    "preview": true
-  }
-}
-```
+### Navigation and analysis examples
 
-`add-authorize-attribute` preview:
+| Tool | Example input |
+|------|---------------|
+| `diagnose` | `{"path":"MyProduct.sln"}` |
+| `find-references` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs","symbolName":"OrderService","maxResults":50}}` |
+| `find-callers` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs","symbolName":"CreateOrderAsync","line":42,"maxResults":50}}` |
+| `find-implementations` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/IOrderService.cs","symbolName":"IOrderService","maxResults":50}}` |
+| `go-to-definition` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderController.cs","symbolName":"IOrderService","line":18,"column":22}}` |
+| `search-symbols` | `{"path":"MyProduct.sln","parameters":{"query":"PaymentService","kindFilter":"Class","maxResults":20}}` |
+| `get-diagnostics` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs","severityFilter":"Warning"}}` |
+| `get-code-metrics` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs","symbolName":"CreateOrderAsync","line":42}}` |
+| `analyze-control-flow` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs","startLine":42,"endLine":60}}` |
+| `analyze-data-flow` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs","startLine":42,"endLine":60}}` |
+| `get-document-outline` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs"}}` |
+| `get-symbol-info` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs","symbolName":"OrderService","line":8}}` |
+| `get-type-hierarchy` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs","symbolName":"OrderService","direction":"Both"}}` |
 
-```json
-{
-  "path": "MyProduct.sln",
-  "parameters": {
-    "authorizeAttributeName": "BravoAuthorize",
-    "excelPath": "authorization.xlsx",
-    "sheetName": "Permissions",
-    "preview": true
-  }
-}
-```
+### Extract, move, and signature refactoring examples
 
-`export-controller-actions` review workbook:
+| Tool | Example input |
+|------|---------------|
+| `extract-method` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs","startLine":42,"startColumn":9,"endLine":55,"endColumn":10,"methodName":"ValidateOrder","visibility":"private","preview":true}}` |
+| `extract-variable` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs","startLine":48,"startColumn":22,"endLine":48,"endColumn":46,"variableName":"total","useVar":true,"preview":true}}` |
+| `extract-constant` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs","startLine":15,"startColumn":30,"endLine":15,"endColumn":35,"constantName":"MaxRetries","visibility":"private","replaceAll":true,"preview":true}}` |
+| `extract-interface` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs","typeName":"OrderService","interfaceName":"IOrderService","members":["CreateOrderAsync"],"targetFile":"src/IOrderService.cs","addInterfaceToType":true,"preview":true}}` |
+| `extract-base-class` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs","typeName":"OrderService","baseClassName":"OrderServiceBase","members":["ValidateOrder"],"targetFile":"src/OrderServiceBase.cs","makeAbstract":true,"preview":true}}` |
+| `introduce-parameter` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs","variableName":"timeout","line":42,"preview":true}}` |
+| `rename-symbol` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs","symbolName":"OrderService","newName":"OrderProcessor","renameFile":true,"preview":true}}` |
+| `inline-variable` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs","variableName":"total","line":48,"preview":true}}` |
+| `change-signature` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs","methodName":"CreateOrderAsync","line":42,"parameters":[{"originalName":"order","name":"request","type":"CreateOrderRequest","newPosition":0}],"preview":true}}` |
+| `encapsulate-field` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/Order.cs","fieldName":"_status","propertyName":"Status","readOnly":false,"preview":true}}` |
+| `move-type-to-file` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/Models.cs","symbolName":"Order","targetFile":"src/Order.cs","createTargetFile":true,"preview":true}}` |
+| `move-type-to-namespace` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/Order.cs","symbolName":"Order","targetNamespace":"MyProduct.Domain","updateFileLocation":false,"preview":true}}` |
 
-```json
-{
-  "path": "MyProduct.sln",
-  "parameters": {
-    "excelPath": "controller-actions.xlsx",
-    "sheetName": "Actions",
-    "includeAuthorized": false,
-    "overwrite": false
-  }
-}
-```
+### Conversion examples
+
+| Tool | Example input |
+|------|---------------|
+| `convert-to-async` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs","methodName":"CreateOrder","line":42,"renameToAsync":true,"preview":true}}` |
+| `convert-expression-body` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/Order.cs","memberName":"GetTotal","direction":"ToBlock","preview":true}}` |
+| `convert-property` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/Order.cs","propertyName":"Status","direction":"ToFull","preview":true}}` |
+| `convert-foreach-linq` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs","line":64,"preview":true}}` |
+| `convert-to-interpolated-string` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs","line":72,"preview":true}}` |
+| `convert-to-pattern-matching` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs","line":80,"preview":true}}` |
+
+### Generation, organization, and formatting examples
+
+| Tool | Example input |
+|------|---------------|
+| `generate-constructor` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs","typeName":"OrderService","members":["_repository","_logger"],"addNullChecks":true,"preview":true}}` |
+| `generate-equals-hashcode` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/Order.cs","typeName":"Order","fields":["Id","Number"],"preview":true}}` |
+| `generate-overrides` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderHandler.cs","typeName":"OrderHandler","members":["HandleAsync"],"callBase":false,"preview":true}}` |
+| `generate-tostring` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/Order.cs","typeName":"Order","fields":["Id","Number"],"format":"interpolated","preview":true}}` |
+| `implement-interface` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs","typeName":"OrderService","interfaceName":"IOrderService","explicitImplementation":false,"members":["CreateOrderAsync"],"throwNotImplemented":true,"preview":true}}` |
+| `add-null-checks` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs","methodName":"CreateOrderAsync","line":42,"style":"ThrowIfNull","preview":true}}` |
+| `add-missing-usings` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs","allFiles":false,"preview":true}}` |
+| `remove-unused-usings` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs","allFiles":false,"preview":true}}` |
+| `sort-usings` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs","preview":true}}` |
+| `format-document` | `{"path":"MyProduct.sln","parameters":{"sourceFile":"src/OrderService.cs"}}` |
 
 The exported workbook contains `Controller Name`, `Action Name`, `Parameter
 Types`, `Method`, and `Claims`. It exports declared public controller actions,
