@@ -54,61 +54,71 @@ RoslynMcp exposes exactly these 43 tools.
 
 ### Authorization automation
 
-1. `add-authorize-attribute`
-2. `export-controller-actions`
+| Tool | What it does | Result |
+|------|--------------|--------|
+| `add-authorize-attribute` | Reads controller/action claim mappings from Excel and previews or adds the requested authorization attribute. | Preview/applied state, row-by-row statuses, validation conflicts, summary counts, generated attributes, and changed files. |
+| `export-controller-actions` | Scans controller actions and exports an editable Excel workbook for HTTP-method review and claim entry. | Workbook path and sheet, exported/skipped counts, and every exported controller/action row. |
 
 ### Navigation and analysis
 
-3. `diagnose`
-4. `find-references`
-5. `find-callers`
-6. `find-implementations`
-7. `go-to-definition`
-8. `search-symbols`
-9. `get-diagnostics`
-10. `get-code-metrics`
-11. `analyze-control-flow`
-12. `analyze-data-flow`
-13. `get-document-outline`
-14. `get-symbol-info`
-15. `get-type-hierarchy`
+| Tool | What it does | Result |
+|------|--------------|--------|
+| `diagnose` | Checks MSBuild/Roslyn availability and optionally verifies that a workspace loads. | Health flag, environment details, and loaded workspace path/project count. |
+| `find-references` | Finds reads, writes, and other references to a symbol across the solution. | Resolved symbol identity, reference locations and context, total count, and truncation state. |
+| `find-callers` | Finds methods and members that call a selected method. | Resolved method identity, caller locations, total count, and truncation state. |
+| `find-implementations` | Finds interface implementations and overrides of abstract or virtual members. | Resolved symbol identity, implementation locations, total count, and truncation state. |
+| `go-to-definition` | Resolves a symbol use to one or more source declarations. | Definition locations, including multiple locations for partial declarations. |
+| `search-symbols` | Searches workspace declarations by name with an optional symbol-kind filter. | Query, matching symbols and locations, total count, and truncation state. |
+| `get-diagnostics` | Retrieves compiler diagnostics for the solution or a selected source file. | Diagnostic IDs, messages, severity and locations, plus the total count. |
+| `get-code-metrics` | Calculates maintainability and complexity metrics for a symbol. | Cyclomatic complexity, lines of code, maintainability index, coupling, and inheritance depth. |
+| `analyze-control-flow` | Analyzes reachability and exits within a selected source region. | Start/end reachability, return statements, and exit points. |
+| `analyze-data-flow` | Analyzes how variables move through a selected source region. | Variables read, written, flowing in/out, captured, and always assigned. |
+| `get-document-outline` | Builds a hierarchical outline of declarations in a C# file. | File path, namespace/type/member outline entries, and total count. |
+| `get-symbol-info` | Returns semantic metadata for a selected symbol. | Symbol kind, qualified name, accessibility, modifiers, types, parameters, members, and documentation when available. |
+| `get-type-hierarchy` | Traverses base types, derived types, and implemented interfaces. | Type identity and its base types, derived types, and interfaces. |
 
 ### Extract, move, and signature refactorings
 
-16. `extract-method`
-17. `extract-variable`
-18. `extract-constant`
-19. `extract-interface`
-20. `extract-base-class`
-21. `introduce-parameter`
-22. `rename-symbol`
-23. `inline-variable`
-24. `change-signature`
-25. `encapsulate-field`
-26. `move-type-to-file`
-27. `move-type-to-namespace`
+| Tool | What it does | Result |
+|------|--------------|--------|
+| `extract-method` | Extracts a selected statement or expression region into a new method. | Preview/apply status, generated method and call-site file changes, symbol metadata, and errors. |
+| `extract-variable` | Replaces a selected expression with a new local variable. | Preview/apply status, declaration/replacement changes, symbol metadata, and errors. |
+| `extract-constant` | Replaces a selected literal with a named constant, optionally replacing all matches. | Preview/apply status, constant/replacement changes, reference count, and errors. |
+| `extract-interface` | Creates an interface from selected members of a type and optionally implements it. | Preview/apply status, new/updated files, generated interface metadata, and errors. |
+| `extract-base-class` | Moves selected members into a new base class. | Preview/apply status, new/updated files, generated base-type metadata, and errors. |
+| `introduce-parameter` | Promotes a local variable to a method parameter and updates callers. | Preview/apply status, declaration/call-site changes, updated reference count, and errors. |
+| `rename-symbol` | Renames a symbol and updates its references, implementations, overloads, or file as requested. | Preview/apply status, changed files, renamed symbol metadata, updated reference count, and errors. |
+| `inline-variable` | Replaces uses of a local variable with its initializer and removes the declaration. | Preview/apply status, replacements, updated reference count, and errors. |
+| `change-signature` | Adds, removes, renames, retypes, or reorders method parameters and updates callers. | Preview/apply status, method/call-site changes, updated reference count, and errors. |
+| `encapsulate-field` | Wraps a field in a property and updates field references. | Preview/apply status, property/reference changes, symbol metadata, and errors. |
+| `move-type-to-file` | Moves a type declaration into a target source file. | Preview/apply status, source/target file changes, moved symbol metadata, and errors. |
+| `move-type-to-namespace` | Changes a type's namespace and updates references and using directives. | Preview/apply status, file/reference changes, using counts, and errors. |
 
 ### Conversions
 
-28. `convert-to-async`
-29. `convert-expression-body`
-30. `convert-property`
-31. `convert-foreach-linq`
-32. `convert-to-interpolated-string`
-33. `convert-to-pattern-matching`
+| Tool | What it does | Result |
+|------|--------------|--------|
+| `convert-to-async` | Converts a synchronous method to async/await form and optionally adds the `Async` suffix. | Preview/apply status, method and caller changes, updated reference count, and errors. |
+| `convert-expression-body` | Converts a member between expression-bodied and block-bodied syntax. | Preview/apply status, member file changes, symbol metadata, and errors. |
+| `convert-property` | Converts a property between auto-property and full-property forms. | Preview/apply status, property/backing-field changes, symbol metadata, and errors. |
+| `convert-foreach-linq` | Converts a compatible `foreach` accumulation pattern into LINQ. | Preview/apply status, loop replacement changes, symbol metadata, and errors. |
+| `convert-to-interpolated-string` | Converts compatible concatenation or `string.Format` code to interpolation. | Preview/apply status, expression changes, symbol metadata, and errors. |
+| `convert-to-pattern-matching` | Converts compatible type checks or switches to C# pattern matching. | Preview/apply status, control-structure changes, symbol metadata, and errors. |
 
 ### Generation, organization, and formatting
 
-34. `generate-constructor`
-35. `generate-equals-hashcode`
-36. `generate-overrides`
-37. `generate-tostring`
-38. `implement-interface`
-39. `add-null-checks`
-40. `add-missing-usings`
-41. `remove-unused-usings`
-42. `sort-usings`
-43. `format-document`
+| Tool | What it does | Result |
+|------|--------------|--------|
+| `generate-constructor` | Generates a constructor for selected fields or properties, with optional null guards. | Preview/apply status, constructor file changes, generated symbol metadata, and errors. |
+| `generate-equals-hashcode` | Generates equality members from selected fields or properties. | Preview/apply status, generated `Equals`/`GetHashCode` changes, symbol metadata, and errors. |
+| `generate-overrides` | Generates overrides for selected virtual or abstract base members. | Preview/apply status, generated member changes, symbol metadata, and errors. |
+| `generate-tostring` | Generates a `ToString` override from selected fields or properties. | Preview/apply status, generated method changes, symbol metadata, and errors. |
+| `implement-interface` | Generates implicit or explicit implementations for interface members. | Preview/apply status, generated member changes, symbol metadata, and errors. |
+| `add-null-checks` | Adds null guards for eligible method parameters. | Preview/apply status, guard changes, symbol metadata, and errors. |
+| `add-missing-usings` | Adds using directives needed to resolve unbound types in one file or the solution. | Preview/apply status, changed files, number of usings added, and errors. |
+| `remove-unused-usings` | Removes unnecessary using directives from one file or the solution. | Preview/apply status, changed files, number of usings removed, and errors. |
+| `sort-usings` | Orders using directives in a C# source file. | Preview/apply status, reordered file changes, and errors. |
+| `format-document` | Formats a C# source file with the workspace's Roslyn formatting options. | Success status, formatted file changes, execution time, and errors. |
 
 Mutating tools support the `preview` contract provided by `RoslynMcp.Core`.
 Request a preview first and apply only after reviewing the returned changes.
