@@ -24,6 +24,21 @@ public sealed class ExtendedToolServiceTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_DiagnoseReportsWorkspaceLoadFailure()
+    {
+        var missingSolution = Path.Combine(Path.GetTempPath(), $"roslyn-mcp-{Guid.NewGuid():N}.slnx");
+
+        var result = JsonSerializer.SerializeToElement(
+            await ExtendedToolService.ExecuteAsync(missingSolution, "diagnose", null));
+
+        Assert.False(result.GetProperty("healthy").GetBoolean());
+        Assert.False(result.GetProperty("workspace").GetProperty("loaded").GetBoolean());
+        Assert.Equal(missingSolution, result.GetProperty("workspace").GetProperty("path").GetString());
+        Assert.Equal("2001", result.GetProperty("error").GetProperty("code").GetString());
+        Assert.Contains("File not found", result.GetProperty("error").GetProperty("message").GetString());
+    }
+
+    [Fact]
     public async Task ExecuteAsync_RejectsUnknownOperationsAndInvalidParameterTypes()
     {
         await Assert.ThrowsAsync<ArgumentException>(() => ExtendedToolService.ExecuteAsync(Solution, "missing", null));
