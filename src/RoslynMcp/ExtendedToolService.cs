@@ -1,4 +1,5 @@
 using System.Reflection;
+using RoslynMcp.Core.Refactoring;
 using RoslynMcp.Core.Workspace;
 using RoslynMcp.Contracts.Models;
 
@@ -81,12 +82,43 @@ public static class ExtendedToolService
     {
         var provider = new MSBuildWorkspaceProvider();
         var environment = provider.CheckEnvironment();
-        object? workspace = null;
-        if (!string.IsNullOrWhiteSpace(path))
+        if (string.IsNullOrWhiteSpace(path))
+            return new { healthy = environment.MsBuildFound, environment, workspace = (object?)null, error = (object?)null };
+
+        try
         {
             using var context = await provider.CreateContextAsync(path, cancellationToken);
-            workspace = new { loaded = true, path = context.LoadedPath, projects = context.Solution.ProjectIds.Count };
+            return new
+            {
+                healthy = environment.MsBuildFound,
+                environment,
+                workspace = (object)new { loaded = true, path = context.LoadedPath, projects = context.Solution.ProjectIds.Count },
+                error = (object?)null
+            };
         }
-        return new { healthy = environment.MsBuildFound, environment, workspace };
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (RefactoringException ex)
+        {
+            return new
+            {
+                healthy = false,
+                environment,
+                workspace = (object)new { loaded = false, path },
+                error = (object)new { code = ex.ErrorCode, message = ex.Message, details = ex.Details, suggestions = ex.Suggestions }
+            };
+        }
+        catch (Exception ex)
+        {
+            return new
+            {
+                healthy = false,
+                environment,
+                workspace = (object)new { loaded = false, path },
+                error = (object)new { code = "unexpected", message = ex.Message, type = ex.GetType().FullName }
+            };
+        }
     }
 }
