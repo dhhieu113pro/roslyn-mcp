@@ -1,4 +1,5 @@
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
@@ -29,6 +30,10 @@ public static class ControllerActionExporter
         ArgumentNullException.ThrowIfNull(parameters);
         var outputPath = ValidateOutputPath(parameters.ExcelPath, parameters.Overwrite);
         var sheetName = string.IsNullOrWhiteSpace(parameters.SheetName) ? "Actions" : parameters.SheetName.Trim();
+
+        if (Directory.Exists(path))
+            return await ExecuteSourceDirectoryAsync(path, outputPath, sheetName, parameters, cancellationToken);
+
         var provider = new MSBuildWorkspaceProvider();
         using var context = await provider.CreateContextAsync(path, cancellationToken);
         var rows = new List<ControllerActionExportRow>();
@@ -92,6 +97,86 @@ public static class ControllerActionExporter
                 }
             }
 
+        return CompleteExport(outputPath, sheetName, rows, skippedAuthorized, skippedAnonymous, controllerNames, parameters.Overwrite);
+    }
+
+    private static async Task<ExportControllerActionsResult> ExecuteSourceDirectoryAsync(
+        string sourceRoot,
+        string outputPath,
+        string sheetName,
+        ExportControllerActionsParams parameters,
+        CancellationToken cancellationToken)
+    {
+        var declarations = new Dictionary<string, List<TypeDeclarationSyntax>>(StringComparer.Ordinal);
+        foreach (var file in EnumerateSourceFiles(sourceRoot))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var source = await File.ReadAllTextAsync(file, cancellationToken);
+            var tree = CSharpSyntaxTree.ParseText(source, path: file);
+            var root = await tree.GetRootAsync(cancellationToken);
+            foreach (var declaration in root.DescendantNodes().OfType<TypeDeclarationSyntax>().Where(IsController))
+            {
+                var qualifiedName = GetQualifiedTypeName(declaration);
+                if (!declarations.TryGetValue(qualifiedName, out var parts))
+                    declarations[qualifiedName] = parts = [];
+                parts.Add(declaration);
+            }
+        }
+
+        var rows = new List<ControllerActionExportRow>();
+        var skippedAuthorized = 0;
+        var skippedAnonymous = 0;
+        var controllerNames = declarations.Keys.ToHashSet(StringComparer.Ordinal);
+
+        foreach (var (controllerName, parts) in declarations)
+        {
+            var controllerIsAnonymous = parts.Any(part => HasAttribute(part.AttributeLists, AllowAnonymousName));
+            var controllerIsAuthorized = parts.Any(part => HasAttribute(part.AttributeLists, BravoAuthorizeName));
+            var controllerClaims = controllerIsAuthorized && parameters.IncludeAuthorized
+                ? parts.SelectMany(part => ReadClaims(part.AttributeLists)).Distinct(StringComparer.Ordinal).ToArray()
+                : [];
+
+            foreach (var method in parts.SelectMany(part => part.Members.OfType<MethodDeclarationSyntax>()).Where(IsControllerAction))
+            {
+                if (controllerIsAnonymous || HasAttribute(method.AttributeLists, AllowAnonymousName))
+                {
+                    skippedAnonymous++;
+                    continue;
+                }
+
+                var actionIsAuthorized = HasAttribute(method.AttributeLists, BravoAuthorizeName);
+                if ((controllerIsAuthorized || actionIsAuthorized) && !parameters.IncludeAuthorized)
+                {
+                    skippedAuthorized++;
+                    continue;
+                }
+
+                var span = method.GetLocation().GetLineSpan();
+                rows.Add(new(
+                    controllerName,
+                    method.Identifier.ValueText,
+                    GetParameterTypes(method),
+                    GetHttpMethod(method),
+                    actionIsAuthorized
+                        ? controllerClaims.Concat(ReadClaims(method.AttributeLists)).Distinct(StringComparer.Ordinal).ToArray()
+                        : controllerClaims,
+                    method.SyntaxTree.FilePath,
+                    span.StartLinePosition.Line + 1));
+            }
+        }
+
+        return CompleteExport(outputPath, sheetName, rows, skippedAuthorized, skippedAnonymous, controllerNames, parameters.Overwrite);
+    }
+
+    private static ExportControllerActionsResult CompleteExport(
+        string outputPath,
+        string sheetName,
+        IReadOnlyList<ControllerActionExportRow> rows,
+        int skippedAuthorized,
+        int skippedAnonymous,
+        IReadOnlyCollection<string> controllerNames,
+        bool overwrite)
+    {
         var duplicateShortNames = controllerNames.GroupBy(GetShortControllerName, StringComparer.Ordinal)
             .Where(group => group.Distinct(StringComparer.Ordinal).Count() > 1)
             .Select(group => group.Key)
@@ -105,8 +190,27 @@ public static class ControllerActionExporter
             .ThenBy(row => row.ActionName, StringComparer.Ordinal)
             .ThenBy(row => string.Join(";", row.ParameterTypes), StringComparer.Ordinal)
             .ToArray();
-        WriteWorkbook(outputPath, sheetName, orderedRows, parameters.Overwrite);
+        WriteWorkbook(outputPath, sheetName, orderedRows, overwrite);
         return new(outputPath, sheetName, orderedRows.Length, skippedAuthorized, skippedAnonymous, orderedRows);
+    }
+
+    private static IEnumerable<string> EnumerateSourceFiles(string sourceRoot) =>
+        Directory.EnumerateFiles(sourceRoot, "*.cs", SearchOption.AllDirectories)
+            .Where(file => !Path.GetRelativePath(sourceRoot, file)
+                .Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries)
+                .Any(segment => segment is "bin" or "obj" or ".git" or ".vs" or "node_modules"));
+
+    private static string GetQualifiedTypeName(TypeDeclarationSyntax declaration)
+    {
+        var parts = new List<string>();
+        parts.AddRange(declaration.Ancestors().OfType<BaseNamespaceDeclarationSyntax>()
+            .Reverse()
+            .Select(item => item.Name.ToString()));
+        parts.AddRange(declaration.Ancestors().OfType<TypeDeclarationSyntax>()
+            .Reverse()
+            .Select(item => item.Identifier.ValueText));
+        parts.Add(declaration.Identifier.ValueText);
+        return string.Join('.', parts);
     }
 
     internal static IReadOnlyList<string> GetParameterTypes(IMethodSymbol method) =>
@@ -120,6 +224,14 @@ public static class ControllerActionExporter
                 _ => string.Empty
             };
             return prefix + parameter.Type.ToDisplayString(ParameterTypeFormat);
+        }).ToArray();
+
+    private static IReadOnlyList<string> GetParameterTypes(MethodDeclarationSyntax method) =>
+        method.ParameterList.Parameters.Select(parameter =>
+        {
+            var modifier = parameter.Modifiers.FirstOrDefault(token => token.ValueText is "ref" or "out" or "in").ValueText;
+            var prefix = string.IsNullOrEmpty(modifier) ? string.Empty : modifier + " ";
+            return prefix + (parameter.Type?.ToString() ?? string.Empty);
         }).ToArray();
 
     internal static bool ParameterTypesMatch(IMethodSymbol method, IReadOnlyList<string> expected) =>
@@ -145,6 +257,14 @@ public static class ControllerActionExporter
         (type.Name.EndsWith("Controller", StringComparison.Ordinal) || HasAttribute(type, "Controller")) &&
         !HasAttribute(type, "NonController");
 
+    private static bool IsController(TypeDeclarationSyntax type) =>
+        (type is ClassDeclarationSyntax || type is RecordDeclarationSyntax record && !record.ClassOrStructKeyword.IsKind(SyntaxKind.StructKeyword)) &&
+        HasModifier(type.Modifiers, SyntaxKind.PublicKeyword) &&
+        !HasModifier(type.Modifiers, SyntaxKind.AbstractKeyword) &&
+        type.TypeParameterList is null &&
+        (type.Identifier.ValueText.EndsWith("Controller", StringComparison.Ordinal) || HasAttribute(type.AttributeLists, "Controller")) &&
+        !HasAttribute(type.AttributeLists, "NonController");
+
     private static bool IsControllerAction(IMethodSymbol method) =>
         method.MethodKind == MethodKind.Ordinary &&
         method.DeclaredAccessibility == Accessibility.Public &&
@@ -155,17 +275,37 @@ public static class ControllerActionExporter
         method.DeclaringSyntaxReferences.Length == 1 &&
         !HasAttribute(method, "NonAction");
 
+    private static bool IsControllerAction(MethodDeclarationSyntax method) =>
+        HasModifier(method.Modifiers, SyntaxKind.PublicKeyword) &&
+        !HasModifier(method.Modifiers, SyntaxKind.StaticKeyword) &&
+        !HasModifier(method.Modifiers, SyntaxKind.AbstractKeyword) &&
+        method.TypeParameterList is null &&
+        !HasAttribute(method.AttributeLists, "NonAction");
+
+    private static bool HasModifier(SyntaxTokenList modifiers, SyntaxKind kind) => modifiers.Any(token => token.IsKind(kind));
+
     private static bool HasAttribute(ISymbol symbol, string shortName) =>
         symbol.GetAttributes().Any(attribute =>
             attribute.AttributeClass?.Name is { } name &&
             (name.Equals(shortName, StringComparison.Ordinal) ||
              name.Equals(shortName + "Attribute", StringComparison.Ordinal)));
 
+    private static bool HasAttribute(SyntaxList<AttributeListSyntax> attributeLists, string shortName) =>
+        attributeLists.SelectMany(list => list.Attributes).Any(attribute => IsNamedAttribute(attribute, shortName));
+
     private static string GetHttpMethod(IMethodSymbol method)
     {
         var verbs = new List<string>();
         if (HasAttribute(method, "HttpGet")) verbs.Add("GET");
         if (HasAttribute(method, "HttpPost")) verbs.Add("POST");
+        return string.Join(", ", verbs);
+    }
+
+    private static string GetHttpMethod(MethodDeclarationSyntax method)
+    {
+        var verbs = new List<string>();
+        if (HasAttribute(method.AttributeLists, "HttpGet")) verbs.Add("GET");
+        if (HasAttribute(method.AttributeLists, "HttpPost")) verbs.Add("POST");
         return string.Join(", ", verbs);
     }
 
