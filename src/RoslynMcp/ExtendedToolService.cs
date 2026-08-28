@@ -96,10 +96,6 @@ public static class ExtendedToolService
                 error = (object?)null
             };
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
         catch (RefactoringException ex)
         {
             return new
@@ -108,16 +104,6 @@ public static class ExtendedToolService
                 environment,
                 workspace = (object)new { loaded = false, path },
                 error = (object)new { code = ex.ErrorCode, message = ex.Message, details = ex.Details, suggestions = ex.Suggestions }
-            };
-        }
-        catch (Exception ex)
-        {
-            return new
-            {
-                healthy = false,
-                environment,
-                workspace = (object)new { loaded = false, path },
-                error = (object)new { code = "unexpected", message = ex.Message, type = ex.GetType().FullName }
             };
         }
     }
