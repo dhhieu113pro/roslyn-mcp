@@ -160,4 +160,34 @@ public sealed class ControllerActionExporterTests
             Directory.Delete(directory, recursive: true);
         }
     }
+
+    [Fact]
+    public async Task ExecuteAsync_ExportsFromRepositoryDirectoryWithoutWorkspace()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"source-only-controllers-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        var output = Path.Combine(directory, "actions.xlsx");
+        await File.WriteAllTextAsync(Path.Combine(directory, "ReportsController.cs"), """
+            public sealed class HttpGetAttribute : System.Attribute;
+            public sealed class ReportsController
+            {
+                [HttpGet]
+                public string List(int page) => page.ToString();
+            }
+            """);
+        try
+        {
+            var result = await ControllerActionExporter.ExecuteAsync(directory, new() { ExcelPath = output });
+
+            var row = Assert.Single(result.Rows);
+            Assert.Equal("ReportsController", row.ControllerName);
+            Assert.Equal("List", row.ActionName);
+            Assert.Equal(["int"], row.ParameterTypes);
+            Assert.Equal("GET", row.Method);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
 }
