@@ -32,6 +32,35 @@ public sealed class BravoAuthorizeExcelReaderTests
     }
 
     [Fact]
+    public void Read_AllowsWorkbookToRemainOpenInExcel()
+    {
+        var path = CreateWorkbook("Time.Modules.CourseBooking.Web", worksheet =>
+        {
+            worksheet.Cells[1, 1].Value = "Controller Name";
+            worksheet.Cells[1, 2].Value = "Action Name";
+            worksheet.Cells[1, 3].Value = "Claims";
+            worksheet.Cells[2, 1].Value = "CourseController";
+            worksheet.Cells[2, 2].Value = "Index";
+            worksheet.Cells[2, 3].Value = "Courses_Retrieve";
+        });
+
+        try
+        {
+            using var excelHandle = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+            var mapping = Assert.Single(BravoAuthorizeExcelReader.Read(path, "Time.Modules.CourseBooking.Web"));
+
+            Assert.Equal("CourseController", mapping.ControllerName);
+            Assert.Equal("Index", mapping.ActionName);
+            Assert.Equal(["BravoClaimConstants.Courses_Retrieve"], mapping.Claims);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void Read_RejectsMissingFilesWrongExtensionsSheetsHeadersAndIncompleteRows()
     {
         Assert.Throws<FileNotFoundException>(() => BravoAuthorizeExcelReader.Read(Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.xlsx")));

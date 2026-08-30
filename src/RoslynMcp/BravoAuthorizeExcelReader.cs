@@ -19,7 +19,8 @@ public static class BravoAuthorizeExcelReader
         if (!Path.GetExtension(fullPath).Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
             throw new ArgumentException("Authorization workbook must be an .xlsx file.", nameof(excelPath));
 
-        using var package = new ExcelPackage(new FileInfo(fullPath));
+        using var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var package = new ExcelPackage(stream);
         var worksheet = string.IsNullOrWhiteSpace(sheetName)
             ? package.Workbook.Worksheets.FirstOrDefault()
             : package.Workbook.Worksheets.FirstOrDefault(candidate =>
